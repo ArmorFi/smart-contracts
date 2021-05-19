@@ -15,7 +15,7 @@ const getReason = async (tc, member, index) => {
   return zeroPaddedReason.replace(/(00)+$/, '');
 };
 
-describe('removeEmptyReason', function () {
+describe.only('removeEmptyReason', function () {
 
   it('reverts when lockReason array is empty', async function () {
 
