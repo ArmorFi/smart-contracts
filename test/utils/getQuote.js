@@ -38,11 +38,12 @@ async function getQuoteSignature (...args) {
   const msgHash = util.hashPersonalMessage(message);
   const sig = util.ecsign(msgHash, quoteAuthPrivateKey);
 
-  return [
+  const vrs = [
     sig.v,
     '0x' + sig.r.toString('hex'),
     '0x' + sig.s.toString('hex'),
   ];
+  return vrs;
 }
 
 module.exports = { getQuoteSignature, quoteAuthPrivateKey, quoteAuthAddress };
