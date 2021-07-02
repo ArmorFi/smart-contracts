@@ -56,14 +56,17 @@ describe('basic functionality tests', async function () {
     this.master = await NXMaster.at(getAddressByCode(('NXMASTER')));
     this.governance = await Governance.at(getAddressByCode('GV'));
     this.tokenController = await TokenController.at(getAddressByCode('TC'));
-    this.quotation = await Quotation.at(getAddressByCode('QT'));
+
     this.incidents = await Incidents.at(getAddressByCode('IC'));
-    this.pool = await Pool.at(getAddressByCode('P1'));
     this.quotationData = await QuotationData.at(getAddressByCode('QD'));
     this.gateway = await Gateway.at(getAddressByCode('GW'));
-    this.swapOperator = await SwapOperator.at(getAddressByCode('SO'));
-    this.mcr = await MCR.at(getAddressByCode('MC'));
+
     this.dai = await ERC20MintableDetailed.at(Address.DAI);
+
+    this.quotation = await Quotation.at(await this.master.getLatestAddress(hex('QT')));
+    this.mcr = await MCR.at(await this.master.getLatestAddress(hex('MC')));
+    this.pool = await Pool.at(await this.master.getLatestAddress(hex('P1')));
+    this.swapOperator = await SwapOperator.at(await this.pool.swapOperator());
   });
 
   it('funds accounts', async function () {
