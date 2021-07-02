@@ -26,7 +26,7 @@ const ERC20MintableDetailed = artifacts.require('ERC20MintableDetailed');
 const Pool = artifacts.require('Pool');
 const QuotationData = artifacts.require('QuotationData');
 
-describe('sample test', function () {
+describe('yield token deposit fix', function () {
 
   this.timeout(0);
 
