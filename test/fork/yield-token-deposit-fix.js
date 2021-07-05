@@ -64,8 +64,8 @@ describe('yield token deposit fix', function () {
     const { master, governance, voters } = this;
     console.log('Deploying contracts');
 
-    const newIncidents = await Incidents.new();
-    const newQuotation = await Quotation.new();
+    const newIncidents = await Incidents.at('0x70B806C17440ce69f3Da7CC76b98f2D1b3F43b12');
+    const newQuotation = await Quotation.at('0x6fb89D0A23abD95449e4a49C226D85D2E60D695C');
 
     console.log('Upgrading proxy contracts');
 
