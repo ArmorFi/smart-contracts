@@ -8,7 +8,26 @@ const ETH = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
 function coverToCoverDetailsArray (cover) {
   return [cover.amount, cover.price, cover.priceNXM, cover.expireTime, cover.generationTime];
 }
+async function arNFTBuyCover({ cover, coverHolder, qt, p1, arNFT}) {
+  const signature = await getQuoteSignature(
+    coverToCoverDetailsArray(cover),
+    cover.currency,
+    cover.period,
+    cover.contractAddress,
+    qt.address,
+  );
 
+  return arNFT.buyCover(
+    cover.contractAddress,
+    cover.currency,
+    coverToCoverDetailsArray(cover),
+    cover.period,
+    signature[0],
+    signature[1],
+    signature[2],
+    { from: coverHolder, value: cover.price },
+  );
+}
 async function buyCover ({ cover, coverHolder, qt, p1 }) {
 
   const signature = await getQuoteSignature(
@@ -109,4 +128,4 @@ async function buyCoverThroughGateway ({ coverData, gateway, coverHolder, qt, da
   throw new Error(`Unknown asset ${coverData.asset}`);
 }
 
-module.exports = { buyCover, coverToCoverDetailsArray, buyCoverWithDai, buyCoverThroughGateway };
+module.exports = { arNFTBuyCover, buyCover, coverToCoverDetailsArray, buyCoverWithDai, buyCoverThroughGateway };

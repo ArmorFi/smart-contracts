@@ -1,16 +1,17 @@
 const { accounts, web3 } = require('hardhat');
 const { ether, time } = require('@openzeppelin/test-helpers');
 const { assert } = require('chai');
-const { toBN } = web3.utils;
+const { BN, toBN } = web3.utils;
 
 const { buyCover } = require('../utils').buyCover;
+const { arNFTBuyCover } = require('../utils').buyCover;
 const { hex } = require('../utils').helpers;
 const { CoverStatus } = require('../utils').constants;
 const { enrollMember, enrollClaimAssessor } = require('../utils/enroll');
 
 const EtherRejecter = artifacts.require('EtherRejecter');
 
-const [, member1, member2, member3, coverHolder, payoutAddress] = accounts;
+const [owner, member1, member2, member3, member4, member5, coverHolder, payoutAddress] = accounts;
 
 const coverTemplate = {
   amount: 1, // 1 eth
@@ -22,6 +23,11 @@ const coverTemplate = {
   period: 60,
   contractAddress: '0xc0ffeec0ffeec0ffeec0ffeec0ffeec0ffee0000',
 };
+const fee = ether('0.002');
+const UNLIMITED_ALLOWANCE = new BN('2')
+  .pow(new BN('256'))
+  .sub(new BN('1'));
+const initialMemberFunds = ether('2500');
 
 // CLAIM STATUS:
 //  0             CA Vote
@@ -41,10 +47,62 @@ const coverTemplate = {
 // 14  final      Claim Accepted Payout Done
 
 describe('send claim payout to the payout address', function () {
+  let yInsure;
+  let arNFT;
 
   beforeEach(async function () {
-    await enrollMember(this.contracts, [member1, member2, member3, coverHolder]);
-    await enrollClaimAssessor(this.contracts, [member1, member2, member3]);
+    await enrollMember(this.contracts, [member1, member2, member3, member4, member5, coverHolder]);
+    await enrollClaimAssessor(this.contracts, [member1, member2, member3, member4]);
+  });
+
+  describe.only('arNFT test', function(){
+    beforeEach(async function() {
+      const { tc, cd, cl, qd, mr, master, cr, tk, dai } = this.contracts;
+      const YInsureFactory = await artifacts.require("yInsure");
+      yInsure = await YInsureFactory.new(0,master.address);
+      const arNFTFactory = await artifacts.require("arNFT");
+      arNFT = await arNFTFactory.new(master.address, yInsure.address, tk.address);
+      
+      await arNFT.addCurrency('0x444149',dai.address, {from:owner});
+      await tk.approve(mr.address, UNLIMITED_ALLOWANCE, {from: member5});
+      await mr.switchMembership(arNFT.address,{from:member5});
+      await mr.payJoiningFee(member5, { from: member5, value: fee });
+      await mr.kycVerdict(member5, true);
+      await tk.approve(tc.address, UNLIMITED_ALLOWANCE, { from: member5 });
+      await tk.transfer(member5, initialMemberFunds);
+      await mr.switchMembership(yInsure.address,{from:member5});
+      await arNFT.nxmTokenApprove(tc.address, UNLIMITED_ALLOWANCE, {from:owner});
+      await yInsure.nxmTokenApprove(tc.address, UNLIMITED_ALLOWANCE, {from:owner});
+    });
+
+    it("test", async function() {
+      const { cd, cl, qd, mr, cr } = this.contracts;
+      const cover = { ...coverTemplate };
+      const balanceBefore = toBN(await web3.eth.getBalance(arNFT.address));
+      await arNFTBuyCover({ ...this.contracts, cover, coverHolder, arNFT });
+
+      const [coverId] = await qd.getAllCoversOfUser(arNFT.address);
+      console.log(coverId);
+      await arNFT.submitClaim(coverId, { from: coverHolder });
+      const claimId = (await cd.actualClaimLength()).subn(1);
+
+      const minVotingTime = await cd.minVotingTime();
+      await time.increase(minVotingTime.addn(1));
+      await cl.submitCAVote(claimId, '1', { from: member1 });
+
+      const voteStatusAfter = await cl.checkVoteClosing(claimId);
+      assert(voteStatusAfter.eqn(-1), 'voting should be closed');
+
+      const { statno: claimStatus } = await cd.getClaimStatusNumber(claimId);
+      assert.strictEqual(claimStatus.toNumber(), 14, 'claim status should be 14 (accepted, payout done)');
+
+      const balanceAfter = toBN(await web3.eth.getBalance(arNFT.address));
+      const expectedPayout = ether(cover.amount.toString());
+      const actualPayout = balanceAfter.sub(balanceBefore);
+
+      assert(actualPayout.eq(expectedPayout), 'should have transfered the cover amount');
+      await arNFT.redeemClaim(coverId, {from: coverHolder});
+    });
   });
 
   it('[A1, status: 0, 7, 14] CA accept, closed with closeClaim()', async function () {
